@@ -177,6 +177,10 @@ const streaming = new SogStreamScheduler({
 - [RadStreamScheduler](docs/RadStreamScheduler.md) — Large RAD scenes with adaptive detail.
 - [SogStreamScheduler](docs/SogStreamScheduler.md) — Large SOG scenes with adaptive detail.
 
+## Optional neural post-processing
+
+The example viewer supports PixRestore on WebGPU. See [setup and adapter interfaces](examples/postprocessing/README.md).
+
 ## Development
 
 Requires Node.js 20.19+ or 22.12+, Rust via `rustup`, and the `wasm32-unknown-unknown` target. `build:wasm` installs `wasm-pack` through Cargo if needed.

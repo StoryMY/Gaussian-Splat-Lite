@@ -11,3 +11,6 @@ site-repo/
 npm-debug.log*
 *.zip
 *.gltf
+
+# Local neural-network model assets
+public/models/

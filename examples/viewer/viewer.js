@@ -24,6 +24,11 @@ import { ViewerInspector } from "./viewerInspector.js";
 import { createViewerTAA } from "./viewerTAA.js";
 import { createViewerUI } from "./viewerUI.js";
 
+import { installNeuralPanel } from "./neuralPanel.js";
+import { getSharedGpuDevice } from "./sharedGpuDevice.js";
+
+// biome-ignore lint/style/useConst: requestRender runs during renderer initialization, before the UI can be mounted.
+let neuralUI;
 const viewport = document.querySelector("#viewport");
 const fileInput = document.querySelector("#file-input");
 const referenceToggle = document.querySelector("#reference-toggle");
@@ -99,6 +104,10 @@ async function createRendererState(backend, previous, onFailure = () => {}) {
           : null;
       state.renderer = new WebGPURenderer({
         ...rendererParameters,
+        device:
+          backend === "webgpu"
+            ? await getSharedGpuDevice().catch(() => undefined)
+            : undefined,
         forceWebGL: backend === "webgl-fallback",
         requiredLimits: adapter
           ? {
@@ -161,16 +170,21 @@ function disposeRendererState(state) {
   state.frameGate?.dispose();
   state.controls?.removeEventListener("update", requestRender);
   state.controls?.dispose();
-  state.taa?.dispose();
-  state.halfFloat?.dispose();
-  state.splatRenderer?.removeFromParent();
-  state.splatRenderer?.dispose();
-  // An attached Inspector is owned and disposed by the renderer.
-  if (state.inspector && state.renderer.inspector !== state.inspector) {
-    state.inspector.dispose();
-  }
-  state.renderer?.dispose();
-  state.renderer?.domElement.remove();
+  const finalize = () => {
+    state.taa?.dispose();
+    state.halfFloat?.dispose();
+    state.splatRenderer?.removeFromParent();
+    state.splatRenderer?.dispose();
+    // An attached Inspector is owned and disposed by the renderer.
+    if (state.inspector && state.renderer.inspector !== state.inspector) {
+      state.inspector.dispose();
+    }
+    state.renderer?.dispose();
+    state.renderer?.domElement.remove();
+  };
+  if (state.neural)
+    void state.neural.dispose().catch(console.error).finally(finalize);
+  else finalize();
 }
 
 function mountRendererState(state, attachInspector = true) {
@@ -229,6 +243,7 @@ function updateStats(time, rendered) {
 }
 
 function requestRender() {
+  neuralUI?.invalidate();
   needsRender = true;
   taa?.invalidate();
 }
@@ -329,6 +344,7 @@ function switchRendererBackend(backend) {
 }
 
 function detachRendererState(state) {
+  state.neural?.setEnabled(false);
   state.renderer.setAnimationLoop(null);
   state.controls.enabled = false;
   state.controls.removeEventListener("update", requestRender);
@@ -337,6 +353,7 @@ function detachRendererState(state) {
 }
 
 function activateRendererState(state, attachInspector = true) {
+  neuralUI?.backendChanged();
   rendererState = state;
   ({ renderer, controls, splatRenderer, frameGate } = state);
   taa = state.taa ?? null;
@@ -858,6 +875,7 @@ window.addEventListener("blur", clearDragState);
 
 window.addEventListener("resize", resizeRenderer);
 window.addEventListener("beforeunload", () => {
+  neuralUI?.dispose();
   viewerDisposed = true;
   rendererSwitchToken += 1;
   renderer.setAnimationLoop(null);
@@ -867,6 +885,15 @@ window.addEventListener("beforeunload", () => {
   disposeRendererState(rendererState);
   disposeRendererState(retiringRendererState);
   ui.dispose();
+});
+
+neuralUI = installNeuralPanel({
+  parent: renderOptionsContent,
+  viewport,
+  getState: () => rendererState,
+  scene,
+  camera,
+  hasModel: () => Boolean(activeSplat),
 });
 
 resizeRenderer();

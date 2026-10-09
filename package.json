@@ -73,6 +73,7 @@
     "@biomejs/biome": "1.9.4",
     "@types/three": "0.186.0",
     "gaussian-splat-rs": "file:rust/gaussian-splat-rs/pkg",
+    "onnxruntime-web": "1.30.0",
     "publint": "0.3.24",
     "three": "0.186.0",
     "typescript": "^5.7.3",
