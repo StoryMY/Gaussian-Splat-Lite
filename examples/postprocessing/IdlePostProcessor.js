@@ -2,7 +2,7 @@
  * Framework-independent scheduler. Source.capture() returns a borrowed GPU frame;
  * processor.process(frame) returns an owned result; presenter shows/hides it.
  * One task at a time. Continuous mode presents completed frames and captures the
- * latest view next; idle mode discards frames invalidated during inference.
+ * latest view next only when it changed; idle mode discards invalidated frames.
  */
 export class IdlePostProcessor {
   constructor({
@@ -78,6 +78,7 @@ export class IdlePostProcessor {
     }
     const revision = this.revision;
     const generation = this.generation;
+    let capturedRevision = revision;
     const stale = () =>
       this.disposed ||
       !this.enabled ||
@@ -91,6 +92,8 @@ export class IdlePostProcessor {
         await this.processor.initialize(this.source.device);
         if (stale()) return;
         const start = performance.now();
+        // Changes during initialization are already included in this capture.
+        capturedRevision = this.revision;
         frame = await this.source.capture();
         if (stale()) return;
         result = await this.processor.process(frame);
@@ -124,7 +127,8 @@ export class IdlePostProcessor {
       this.enabled &&
       !this.disposed &&
       !this.failed &&
-      this.mode === "continuous"
+      this.mode === "continuous" &&
+      this.revision !== capturedRevision
     ) {
       this.schedule(0);
     }

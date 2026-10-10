@@ -281,3 +281,66 @@ test("continuous inference failures stop automatic retries", async (t) => {
   assert.equal(calls, 1);
   await h.scheduler.dispose();
 });
+
+
+test("continuous mode sleeps when unchanged, wakes on changes and allows manual refresh", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness({ mode: "continuous" });
+  const { task } = await started(h);
+  h.gate.resolve(h.result);
+  await task;
+  assert.equal(h.scheduler.timer, null);
+  t.mock.timers.tick(1000);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(h.events.filter((e) => e === "process").length, 1);
+  assert.ok(!h.events.includes("release-result"));
+
+  for (let i = 0; i < 20; i++) h.scheduler.invalidate();
+  t.mock.timers.tick(0);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(h.events.filter((e) => e === "process").length, 2);
+  assert.equal(h.scheduler.timer, null);
+
+  h.scheduler.invalidate({ reset: true });
+  await h.scheduler.run();
+  assert.equal(h.events.filter((e) => e === "process").length, 3);
+  assert.equal(h.scheduler.timer, null);
+  await h.scheduler.dispose();
+});
+
+test("continuous mode includes changes during loading in its first capture", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness({ mode: "continuous" });
+  const loading = deferred();
+  h.scheduler.processor.initialize = () => loading.promise;
+  const task = h.scheduler.run();
+  h.scheduler.invalidate();
+  loading.resolve();
+  h.gate.resolve(h.result);
+  await task;
+  assert.equal(h.events.filter((e) => e === "process").length, 1);
+  assert.equal(h.scheduler.timer, null);
+  await h.scheduler.dispose();
+});
+
+test("continuous mode processes one final frame after changes during capture", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness({ mode: "continuous" });
+  const capturing = deferred();
+  let captures = 0;
+  h.scheduler.source.capture = () => {
+    captures++;
+    return capturing.promise;
+  };
+  const { task } = await started(h);
+  h.scheduler.invalidate();
+  capturing.resolve({});
+  h.gate.resolve(h.result);
+  await task;
+  assert.notEqual(h.scheduler.timer, null);
+  t.mock.timers.tick(0);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(captures, 2);
+  assert.equal(h.scheduler.timer, null);
+  await h.scheduler.dispose();
+});
