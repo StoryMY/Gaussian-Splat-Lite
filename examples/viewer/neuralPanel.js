@@ -17,12 +17,16 @@ export function installNeuralPanel({
     <select data-model aria-label="PixRestore 精度">
       <option value="fp16">FP16 compat</option><option value="fp32">FP32 compat</option>
     </select>
+    <select data-mode aria-label="PixRestore 增强模式">
+      <option value="idle">静止增强</option><option value="continuous">连续增强</option>
+    </select>
     <label><input type="checkbox" data-validation> 512×512 验证模式</label>
     <button type="button" data-run>重新处理</button>
     <small data-status role="status">关闭 · 停止操作后增强</small>`;
   parent.prepend(panel);
   const enabled = panel.querySelector("[data-enable]");
   const model = panel.querySelector("[data-model]");
+  const mode = panel.querySelector("[data-mode]");
   const run = panel.querySelector("[data-run]");
   const status = panel.querySelector("[data-status]");
   let token = 0;
@@ -68,6 +72,7 @@ export function installNeuralPanel({
         new URLSearchParams(location.search).get("postprocessManifest") ||
         `/models/pixrestore-s-ft-d6-${model.value}-compat/pixrestore-manifest.json`;
       state.neural = new IdlePostProcessor({
+        mode: mode.value,
         source: new GslFrameSource({
           ...state,
           scene,
@@ -93,15 +98,16 @@ export function installNeuralPanel({
     });
   enabled.addEventListener("change", () => void configure());
   model.addEventListener("change", () => void configure());
+  mode.addEventListener("change", () => getState().neural?.setMode(mode.value));
   run.addEventListener("click", () => {
     if (getState().neural && !getState().neural.failed) {
-      getState().neural.invalidate();
+      getState().neural.invalidate({ reset: true });
       void getState().neural.run();
     } else if (enabled.checked) void configure();
   });
   return {
-    invalidate() {
-      getState().neural?.invalidate();
+    invalidate(options) {
+      getState().neural?.invalidate(options);
     },
     backendChanged() {
       token++;

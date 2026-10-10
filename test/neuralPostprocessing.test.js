@@ -14,7 +14,7 @@ function deferred() {
   });
   return { promise, resolve };
 }
-function harness() {
+function harness(options = {}) {
   const gate = deferred();
   const events = [];
   const result = {
@@ -62,6 +62,7 @@ function harness() {
     processor,
     presenter,
     idleMs: 100000,
+    ...options,
   });
   scheduler.setEnabled(true);
   return { gate, events, result, scheduler };
@@ -178,5 +179,105 @@ test("presenter receives the captured overlay before the frame is released", asy
   h.gate.resolve(h.result);
   await task;
   assert.ok(h.events.indexOf("show") < h.events.indexOf("release-frame"));
+  await h.scheduler.dispose();
+});
+
+test("idle enhancement debounces scene changes for 100 ms by default", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness({ idleMs: undefined });
+  t.mock.timers.tick(99);
+  assert.ok(!h.events.includes("capture"));
+  h.scheduler.invalidate();
+  t.mock.timers.tick(99);
+  assert.ok(!h.events.includes("capture"));
+  t.mock.timers.tick(1);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(h.events.filter((e) => e === "capture").length, 1);
+  h.gate.resolve(h.result);
+  await h.scheduler.busy;
+  await h.scheduler.dispose();
+});
+
+test("continuous mode presents completed frames and captures only the latest view next", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness({ mode: "continuous" });
+  let view = 0;
+  const captured = [];
+  const second = deferred();
+  h.scheduler.source.capture = async () => {
+    captured.push(view);
+    return {};
+  };
+  let calls = 0;
+  h.scheduler.processor.process = () =>
+    ++calls === 1 ? h.gate.promise : second.promise;
+  t.mock.timers.tick(0);
+  await new Promise((r) => setImmediate(r));
+  const firstTask = h.scheduler.busy;
+  const hides = h.events.filter((e) => e === "hide").length;
+  for (view = 1; view <= 20; view++) {
+    h.scheduler.invalidate();
+    await h.scheduler.run();
+  }
+  assert.deepEqual(captured, [0]);
+  h.gate.resolve(h.result);
+  await firstTask;
+  assert.equal(h.events.filter((e) => e === "show").length, 1);
+  assert.equal(h.events.filter((e) => e === "hide").length, hides);
+  assert.ok(!h.events.includes("release-result"));
+  t.mock.timers.tick(0);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(captured, [0, 21]);
+  h.scheduler.setEnabled(false);
+  const pending = h.scheduler.busy;
+  second.resolve(h.result);
+  await pending;
+  t.mock.timers.tick(1000);
+  assert.equal(calls, 2);
+  assert.equal(h.events.filter((e) => e === "show").length, 1);
+  await h.scheduler.dispose();
+});
+
+test("switching to idle rejects a continuous result already in flight", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness({ mode: "continuous", idleMs: 100 });
+  const { task } = await started(h);
+  h.scheduler.setMode("idle");
+  h.gate.resolve(h.result);
+  await task;
+  assert.ok(!h.events.includes("show"));
+  assert.ok(h.events.includes("release-result"));
+  t.mock.timers.tick(99);
+  assert.equal(h.events.filter((e) => e === "capture").length, 1);
+  await h.scheduler.dispose();
+});
+
+test("resizing rejects the old continuous frame before capturing a new one", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness({ mode: "continuous" });
+  const { task } = await started(h);
+  h.scheduler.invalidate({ reset: true });
+  h.gate.resolve(h.result);
+  await task;
+  assert.ok(!h.events.includes("show"));
+  assert.ok(h.events.includes("release-result"));
+  assert.notEqual(h.scheduler.timer, null);
+  await h.scheduler.dispose();
+});
+
+test("continuous inference failures stop automatic retries", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const h = harness({ mode: "continuous" });
+  let calls = 0;
+  h.scheduler.processor.process = async () => {
+    calls++;
+    throw new Error("device lost");
+  };
+  await h.scheduler.run();
+  assert.equal(h.scheduler.failed, true);
+  h.scheduler.invalidate();
+  t.mock.timers.tick(1000);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(calls, 1);
   await h.scheduler.dispose();
 });

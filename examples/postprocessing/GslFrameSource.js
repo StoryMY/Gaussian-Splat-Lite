@@ -92,6 +92,11 @@ export class GslFrameSource {
     this.device = renderer.backend.device;
   }
   async capture() {
+    // Both captures must use the same pose while the live camera keeps moving.
+    this.camera.updateWorldMatrix(true, false);
+    const camera = this.camera.clone();
+    camera.matrixAutoUpdate = false;
+    camera.matrix.copy(this.camera.matrixWorld);
     const width = Math.max(1, this.renderer.domElement.width);
     const height = Math.max(1, this.renderer.domElement.height);
     // Keep capture cost bounded; model-specific resize belongs in the processor.
@@ -112,7 +117,7 @@ export class GslFrameSource {
     }
     const target = await this.captureHelper.renderTarget({
       scene: this.scene,
-      camera: this.camera,
+      camera,
     });
     if (
       !this.overlayHelper ||
@@ -139,7 +144,7 @@ export class GslFrameSource {
     }
     const overlayTarget = await this.overlayHelper.renderTarget({
       scene: this.scene,
-      camera: this.camera,
+      camera,
     });
     const overlay = this.renderer.backend.get(overlayTarget.texture).texture;
     const texture = this.renderer.backend.get(target.texture).texture;

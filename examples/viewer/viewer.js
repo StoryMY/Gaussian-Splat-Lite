@@ -513,6 +513,7 @@ function isFileDrag(event) {
 }
 
 function clearActiveModel() {
+  neuralUI?.invalidate({ reset: true });
   taa?.reset();
   if (activeSplat) scene.remove(activeSplat);
   if (activeStream) activeStream.dispose();
@@ -747,6 +748,7 @@ function clearDragState() {
 }
 
 function resizeRenderer() {
+  neuralUI?.invalidate({ reset: true });
   const width = validationMode ? 512 : viewport.clientWidth;
   const height = validationMode ? 512 : viewport.clientHeight;
   renderer.setPixelRatio(
