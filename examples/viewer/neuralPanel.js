@@ -8,14 +8,16 @@ export function installNeuralPanel({
   helpers,
   controlsScene,
   hasModel,
+  onValidationModeChange,
 }) {
   const panel = document.createElement("section");
   panel.className = "neural-panel";
   panel.innerHTML = `
     <label><input type="checkbox" data-enable> PixRestore 后处理</label>
     <select data-model aria-label="PixRestore 精度">
-      <option value="fp32">FP32 compat</option><option value="fp16">FP16 compat</option>
+      <option value="fp16">FP16 compat</option><option value="fp32">FP32 compat</option>
     </select>
+    <label><input type="checkbox" data-validation> 512×512 验证模式</label>
     <button type="button" data-run>重新处理</button>
     <small data-status role="status">关闭 · 停止操作后增强</small>`;
   parent.prepend(panel);
@@ -84,6 +86,11 @@ export function installNeuralPanel({
       if (id === token) setStatus(`失败：${error.message}`);
     }
   }
+  panel
+    .querySelector("[data-validation]")
+    .addEventListener("change", (event) => {
+      onValidationModeChange(event.target.checked);
+    });
   enabled.addEventListener("change", () => void configure());
   model.addEventListener("change", () => void configure());
   run.addEventListener("click", () => {

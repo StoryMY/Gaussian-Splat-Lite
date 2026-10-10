@@ -1,6 +1,7 @@
 # 可选神经网络后处理
 
 查看器的 Render options 中开启 PixRestore。默认关闭，首次开启才加载 ORT 和模型。
+开启“512×512 验证模式”可固定渲染与捕获分辨率、使用方形相机视口；关闭后恢复窗口尺寸。
 停止操作 450 ms 后捕获一次；相机、窗口或场景变化立即隐藏旧结果。
 “重新处理”用于手动重复测量。关闭后释放会话和缓冲区。
 切换渲染后端会关闭后处理，可在原生 WebGPU 下重新开启。
@@ -14,7 +15,7 @@
 
 每个目录包含 `pixrestore-manifest.json`、`dino_encoder.onnx`、`pixel_dit.onnx`。
 也可以通过 `?postprocessManifest=/models/custom/pixrestore-manifest.json` 指定清单。
-远程清单及模型需要允许 CORS。默认 FP32；FP16 需要 shader-f16。
+远程清单及模型需要允许 CORS。默认 FP16，需要 shader-f16；不支持时可选择 FP32。
 
 ## 模块边界
 

@@ -71,18 +71,9 @@ fn readPixel(at: vec2i) -> vec3f {
       result.dataType === "float16" ? "f16" : "f32",
     );
     if (!pipeline) throw new Error("显示管线尚未初始化");
-    this.canvas.width = Math.max(
-      1,
-      Math.round(
-        this.canvas.parentElement.clientWidth * Math.min(devicePixelRatio, 2),
-      ),
-    );
-    this.canvas.height = Math.max(
-      1,
-      Math.round(
-        this.canvas.parentElement.clientHeight * Math.min(devicePixelRatio, 2),
-      ),
-    );
+    // Match the captured drawing buffer, including fixed-resolution validation.
+    this.canvas.width = this.overlay.width;
+    this.canvas.height = this.overlay.height;
     const r = result.rect;
     this.device.queue.writeBuffer(
       this.params,

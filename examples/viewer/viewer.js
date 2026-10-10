@@ -217,6 +217,7 @@ let needsRender = true;
 let taa = null;
 // resizeRenderer() reads it while mounting the first renderer.
 let activeStream = null;
+let validationMode = false;
 let renderOnDemand = true;
 let halfFloatBlending = true;
 let rendererState = await createRendererState("webgpu");
@@ -746,8 +747,11 @@ function clearDragState() {
 }
 
 function resizeRenderer() {
-  const width = viewport.clientWidth;
-  const height = viewport.clientHeight;
+  const width = validationMode ? 512 : viewport.clientWidth;
+  const height = validationMode ? 512 : viewport.clientHeight;
+  renderer.setPixelRatio(
+    validationMode ? 1 : Math.min(window.devicePixelRatio, 2),
+  );
   renderer.setSize(width, height, false);
   taa?.setSize(width, height);
   camera.aspect = width / Math.max(height, 1);
@@ -896,6 +900,11 @@ neuralUI = installNeuralPanel({
   helpers: referenceHelpers.group,
   controlsScene: controlsOverlayScene,
   hasModel: () => Boolean(activeSplat),
+  onValidationModeChange: (enabled) => {
+    validationMode = enabled;
+    viewport.classList.toggle("validation-512", enabled);
+    resizeRenderer();
+  },
 });
 
 resizeRenderer();

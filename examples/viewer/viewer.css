@@ -63,6 +63,18 @@ button {
   outline: none;
 }
 
+/* A square camera preview; backing buffers remain 512² even on Retina displays. */
+#viewport.validation-512 {
+  inset: 50% auto auto 50%;
+  width: min(512px, 100vw, 100dvh);
+  height: min(512px, 100vw, 100dvh);
+  transform: translate(-50%, -50%);
+}
+
+#viewport.validation-512 canvas {
+  position: absolute;
+}
+
 .performance-stats {
   position: relative;
   display: flex;

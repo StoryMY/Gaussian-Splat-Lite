@@ -28,7 +28,10 @@ export function createViewerTAA(renderer, scene, camera) {
     },
     setSize(width, height) {
       // RenderPipeline follows the renderer's size by itself.
-      if (!nodeRenderer) pipeline.setSize(width, height);
+      if (!nodeRenderer) {
+        pipeline.setPixelRatio(renderer.getPixelRatio());
+        pipeline.setSize(width, height);
+      }
     },
     invalidate() {
       remainingFrames = TAA_SETTLE_FRAMES;
