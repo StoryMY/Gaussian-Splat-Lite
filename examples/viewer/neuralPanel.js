@@ -5,6 +5,8 @@ export function installNeuralPanel({
   getState,
   scene,
   camera,
+  helpers,
+  controlsScene,
   hasModel,
 }) {
   const panel = document.createElement("section");
@@ -64,7 +66,13 @@ export function installNeuralPanel({
         new URLSearchParams(location.search).get("postprocessManifest") ||
         `/models/pixrestore-s-ft-d6-${model.value}-compat/pixrestore-manifest.json`;
       state.neural = new IdlePostProcessor({
-        source: new GslFrameSource({ ...state, scene, camera }),
+        source: new GslFrameSource({
+          ...state,
+          scene,
+          camera,
+          helpers,
+          controlsScene,
+        }),
         processor: new PixRestoreProcessor(url),
         presenter: new GpuPresenter(state.renderer.backend.device, viewport),
         onStatus: (message) => {

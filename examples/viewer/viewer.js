@@ -893,6 +893,8 @@ neuralUI = installNeuralPanel({
   getState: () => rendererState,
   scene,
   camera,
+  helpers: referenceHelpers.group,
+  controlsScene: controlsOverlayScene,
   hasModel: () => Boolean(activeSplat),
 });
 

@@ -28,8 +28,9 @@
 | neuralPanel | 查看器开关及状态，独立于核心库 |
 
 替换渲染器：实现 source 的 `device / capture() / dispose()`，输入 frame 为
-`{device, texture, width, height, colorSpace, release?}`，纹理原点左上。
+`{device, texture, overlay, width, height, colorSpace, release?}`，纹理原点左上。
 colorSpace 表示 textureLoad 得到的是 `srgb` 还是 `linear-srgb`；输入按黑底合成。
+overlay 为 presenter 使用的预乘 sRGB 辅助图层纹理，由 source 保留至下次捕获或销毁。
 
 替换神经网络：实现 `initialize(device) / process(frame) / dispose()`。
 现有 presenter 的结果协议为
@@ -53,7 +54,8 @@ ORT 在应用中绑定单一 GPUDevice；Three.js 切换后端复用应用拥有
 状态耗时从捕获开始到网络 GPU 工作完成；不含首次加载、最终呈现，不是纯 GPU 时间。
 正常推理不下载图像张量；只等待队列完成来提供有意义的耗时。
 
-捕获使用 SplatCapture 的独立渲染，不包含查看器屏幕上的 TAA 历史或控制点覆盖层。
+捕获使用 SplatCapture 的独立渲染，不包含查看器屏幕上的 TAA 历史。
+网格、坐标轴和控制点不进入 PixRestore，按原始分辨率在增强后合成；遮挡依据原始高斯。
 不承诺逐帧时序一致；第一版定位为停止移动后的静帧增强。
 
 ## 参考

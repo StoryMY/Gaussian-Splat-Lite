@@ -56,9 +56,9 @@ export class IdlePostProcessor {
         result = await this.processor.process(frame);
         if (revision !== this.revision || this.disposed) return;
         const inferenceMs = performance.now() - start;
-        await this.presenter.prepare?.(result);
+        await this.presenter.prepare?.(result, frame);
         if (revision !== this.revision || this.disposed) return;
-        this.presenter.show(result);
+        this.presenter.show(result, frame);
         this.failed = false;
         this.result?.release();
         this.result = result;

@@ -152,3 +152,31 @@ test("unsupported manifests fail before allocating GPU resources", () => {
     /manifest/,
   );
 });
+
+// The overlay is borrowed from the source, and must remain alive until presentation.
+test("presenter receives the captured overlay before the frame is released", async () => {
+  const h = harness();
+  const frame = {
+    overlay: {},
+    release() {
+      h.events.push("release-frame");
+    },
+  };
+  h.scheduler.source.capture = async () => frame;
+  h.scheduler.presenter.prepare = async (result, captured) => {
+    assert.equal(captured, frame);
+    assert.equal(result, h.result);
+    assert.ok(!h.events.includes("release-frame"));
+  };
+  h.scheduler.presenter.show = (result, captured) => {
+    assert.equal(captured.overlay, frame.overlay);
+    assert.equal(result, h.result);
+    assert.ok(!h.events.includes("release-frame"));
+    h.events.push("show");
+  };
+  const { task } = await started(h);
+  h.gate.resolve(h.result);
+  await task;
+  assert.ok(h.events.indexOf("show") < h.events.indexOf("release-frame"));
+  await h.scheduler.dispose();
+});

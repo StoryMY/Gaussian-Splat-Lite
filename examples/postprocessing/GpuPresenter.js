@@ -20,7 +20,8 @@ export class GpuPresenter {
       usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     });
   }
-  async prepare(result) {
+  async prepare(result, frame) {
+    this.overlay = frame.overlay;
     const half = result.dataType === "float16";
     const scalar = half ? "f16" : "f32";
     let pipeline = this.pipelines.get(scalar);
@@ -31,6 +32,7 @@ ${half ? "enable f16;" : ""}
 struct Params { rect: vec4f, size: vec2f, pad: vec2f }
 @group(0) @binding(0) var<storage, read> rgb: array<${scalar}>;
 @group(0) @binding(1) var<uniform> p: Params;
+@group(0) @binding(2) var overlay: texture_2d<f32>;
 struct Vertex { @builtin(position) position: vec4f, @location(0) uv: vec2f }
 @vertex fn vs(@builtin(vertex_index) i: u32) -> Vertex {
   let xy = array<vec2f,3>(vec2f(-1,-1),vec2f(3,-1),vec2f(-1,3));
@@ -44,7 +46,11 @@ fn readPixel(at: vec2i) -> vec3f {
 @fragment fn fs(v: Vertex) -> @location(0) vec4f {
   let pos=p.rect.xy+v.uv*p.rect.zw-0.5; let a=vec2i(floor(pos)); let f=fract(pos);
   let c=mix(mix(readPixel(a),readPixel(a+vec2i(1,0)),f.x),mix(readPixel(a+vec2i(0,1)),readPixel(a+vec2i(1,1)),f.x),f.y);
-  return vec4f(clamp(c*0.5+0.5,vec3f(0),vec3f(1)),1);
+  let size = textureDimensions(overlay);
+  let at = clamp(vec2i(v.uv*vec2f(size)), vec2i(0), vec2i(size)-1);
+  let helpers = textureLoad(overlay, at, 0);
+  let restored = clamp(c*0.5+0.5,vec3f(0),vec3f(1));
+  return vec4f(helpers.rgb + restored * (1.0-helpers.a),1);
 }`,
       });
       pipeline = await this.device.createRenderPipelineAsync({
@@ -111,6 +117,7 @@ fn readPixel(at: vec2i) -> vec3f {
         entries: [
           { binding: 0, resource: { buffer: result.buffer } },
           { binding: 1, resource: { buffer: this.params } },
+          { binding: 2, resource: this.overlay.createView() },
         ],
       }),
     );
