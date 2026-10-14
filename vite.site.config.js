@@ -3,8 +3,11 @@ import { defineConfig } from "vite";
 import arraybuffer from "vite-plugin-arraybuffer";
 import glsl from "vite-plugin-glsl";
 
+import { pixrestoreModels } from "./scripts/pixrestore-models.js";
+
 export default defineConfig({
   plugins: [
+    pixrestoreModels(),
     arraybuffer(),
     glsl({
       include: ["**/*.glsl"],

@@ -1,12 +1,13 @@
 import { bindDevice, exclusive } from "./ortRuntime.js";
+import { modelFromUrl } from "./modelSource.js";
 import { fitRect, fixedNoise, validateManifest } from "./pixrestoreMath.js";
 
 /** No renderer imports. Input: top-left GPUTexture (premultiplied RGB on black).
  * Output: owned normalized sRGB planar RGB GPUBuffer + content rect.
  */
 export class PixRestoreProcessor {
-  constructor(manifestUrl) {
-    this.manifestUrl = manifestUrl;
+  constructor(modelSource) {
+    this.modelSource = modelSource;
     this.buffers = [];
     this.tensors = [];
   }
@@ -14,12 +15,11 @@ export class PixRestoreProcessor {
     this.initializing ??= exclusive(async () => {
       this.device = device;
       this.ort = bindDevice(device);
-      const response = await fetch(this.manifestUrl);
-      if (!response.ok)
-        throw new Error(
-          `模型清单加载失败 (${response.status})：${this.manifestUrl}`,
-        );
-      const m = validateManifest(await response.json());
+      const source =
+        typeof this.modelSource === "string"
+          ? await modelFromUrl(this.modelSource)
+          : this.modelSource;
+      const m = validateManifest(source.manifest);
       this.manifest = m;
       if (m.precision === "fp16" && !device.features.has("shader-f16")) {
         throw new Error("设备不支持 shader-f16，请选择 FP32");
@@ -30,11 +30,11 @@ export class PixRestoreProcessor {
         graphOptimizationLevel: "disabled",
       };
       this.dino = await this.ort.InferenceSession.create(
-        new URL(m.models.dinoEncoder, response.url).href,
+        await source.loadModel(m.models.dinoEncoder),
         options,
       );
       this.pixel = await this.ort.InferenceSession.create(
-        new URL(m.models.pixelDit, response.url).href,
+        await source.loadModel(m.models.pixelDit),
         options,
       );
       if (

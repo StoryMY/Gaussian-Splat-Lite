@@ -10,14 +10,17 @@
 
 ## 模型
 
-将 PixRestore 导出的 compat 文件放到以下任一目录（模型不提交 Git）：
+把模型目录放在 `public` 下任意位置，每套模型包含 `pixrestore-manifest.json` 及其引用的 ONNX 文件。
+页面自动扫描清单并提供模型下拉框，显示目录、精度、分辨率、深度及融合算子信息。
+通过 HTTP 加载模型，不需要上传文件或申请本地目录权限。开启后处理才加载 ONNX。
 
-- `public/models/pixrestore-s-ft-d6-fp32-compat/`
-- `public/models/pixrestore-s-ft-d6-fp16-compat/`
+开发模式下，每次刷新页面或点击“刷新模型列表”都会重新扫描；目录新增或改名后可直接刷新。
+扫描只读取清单，跳过无效清单，不读取 ONNX 内容。
+构建时生成 `pixrestore-models.json` 静态索引；正式部署新增模型后需要重新构建。
+修改 Vite 插件后需重启开发服务器。
 
-每个目录包含 `pixrestore-manifest.json`、`dino_encoder.onnx`、`pixel_dit.onnx`。
-也可以通过 `?postprocessManifest=/models/custom/pixrestore-manifest.json` 指定清单。
-远程清单及模型需要允许 CORS。默认 FP16，需要 shader-f16；不支持时可选择 FP32。
+仍支持 `?postprocessManifest=/models/custom/pixrestore-manifest.json` 自定义模型入口，
+也可以通过下拉框切换其他模型。FP16 需要 shader-f16。
 
 ## 模块边界
 
