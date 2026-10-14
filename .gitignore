@@ -13,4 +13,4 @@ npm-debug.log*
 *.gltf
 
 # Local neural-network model assets
-public/models/
+public/models*/
